@@ -13,7 +13,7 @@ function App() {
         <Router>
           <Switch>
             <PrivateRoute path="/" exact component={() => <Home />}></PrivateRoute>
-            <Route path="/login" exact component={() => <div>Login</div>}></Route>
+            <Route path="*" exact component={() => <div>Not FOund</div>}></Route>
           </Switch>
         </Router>
       </AuthProvider>
