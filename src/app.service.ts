@@ -10,13 +10,17 @@ const execProm = util.promisify(exec);
 
 const dirCodes = join(__dirname, 'codes');
 
-const outputPath = join(__dirname, 'outputs');
+const outputDirPath = join(__dirname, 'outputs');
+const inputDirPath = join(__dirname, 'inputs');
 
-if (!existsSync(outputPath)) {
-  mkdirSync(outputPath, { recursive: true });
+if (!existsSync(outputDirPath)) {
+  mkdirSync(outputDirPath, { recursive: true });
 }
 if (!existsSync(dirCodes)) {
   mkdirSync(dirCodes, { recursive: true });
+}
+if (!existsSync(inputDirPath)) {
+  mkdirSync(inputDirPath, { recursive: true });
 }
 @Injectable()
 export class AppService {
@@ -25,36 +29,50 @@ export class AppService {
   getHello(): string {
     return 'Hello World!';
   }
-  async generateFile(
-    extension,
-    content,
-  ): Promise<{ job: Jobs; filepath: string }> {
+  getJobById(id): Promise<Jobs> {
+    return this.jobService.getJobById(id);
+  }
+  async generateFile(extension, content, input?: undefined): Promise<Jobs> {
     const jobId = uuid();
     const filename = `${jobId}.${extension}`;
     const filepath = join(dirCodes, filename);
     await writeFileSync(filepath, content);
 
-    const job = await this.jobService.createNewJob(extension, filepath);
+    let inputFilePath;
+    if (input) {
+      const inputFile = `${jobId}.txt`;
+      inputFilePath = join(inputDirPath, inputFile);
+      await writeFileSync(inputFilePath, input);
+    }
 
-    return { job, filepath };
+    const job = await this.jobService.createNewJob(
+      extension,
+      filepath,
+      inputFilePath,
+    );
+
+    return job;
   }
 
-  async startJob(extension, filepath, job: Jobs) {
+  async startJob(job: Jobs) {
     const j = job;
     j.startedAt = new Date();
 
     let output: { result: string; isError: number };
 
-    if (extension === 'cpp') {
-      output = await this.executeCpp(filepath);
-    } else if (extension === 'c') {
-      // output = await this.executeC(filepath);
-    } else if (extension === 'py') {
-      // output = await this.executePy(filepath);
-    } else if (extension === 'js') {
-      output = await this.executeJs(filepath);
+    if (job.language_ext === 'cpp') {
+      output = await this.executeCpp(job);
+    } else if (job.language_ext === 'c') {
+      output = await this.executeC(job);
+    } else if (job.language_ext === 'py') {
+      output = await this.executePy(job);
+    } else if (job.language_ext === 'js') {
+      output = await this.executeJs(job);
+    } else if (job.language_ext === 'ts') {
+      output = await this.executeTs(job);
     }
 
+    console.log(output);
     j.completedAt = new Date();
     j.output = output.result;
     if (output.isError) j.status = STATUS.ERROR;
@@ -64,17 +82,26 @@ export class AppService {
     return;
   }
 
-  async executeCpp(filepath): Promise<{ result: string; isError: number }> {
-    const jobId = basename(filepath).split('.')[0];
-    const outPath = join(outputPath, `${jobId}`);
+  async executeCpp(job: Jobs): Promise<{ result: string; isError: number }> {
+    const filepath = job.filepath;
+    // const jobId = basename(filepath).split('.')[0];
+    const jobId = job.id;
+    const outPath = join(outputDirPath, `${jobId}`);
     let isError = 0;
 
     let result;
     try {
-      const p = await execProm(
-        `g++ ${filepath} -o ${outPath} && cd ${outputPath} && ${jobId}.exe`,
-      );
-      result = p.stdout;
+      if (job.inputPath) {
+        const p = await execProm(
+          `g++ -Wall ${filepath} -o ${outPath}  && cd ${outputDirPath} && ${jobId}.exe < ${job.inputPath}`,
+        );
+        result = p.stdout;
+      } else {
+        const p = await execProm(
+          `g++ ${filepath} -o ${outPath} && cd ${outputDirPath} && ${jobId}.exe`,
+        );
+        result = p.stdout;
+      }
     } catch (ex) {
       result = ex.stderr;
       isError = 1;
@@ -84,17 +111,25 @@ export class AppService {
 
     return { result, isError };
   }
-  async executeC(filepath): Promise<{ result: string; isError: number }> {
+  async executeC(job: Jobs): Promise<{ result: string; isError: number }> {
+    const filepath = job.filepath;
     const jobId = basename(filepath).split('.')[0];
-    const outPath = join(outputPath, `${jobId}`);
+    const outPath = join(outputDirPath, `${jobId}`);
     let isError = 0;
 
     let result;
     try {
-      const p = await execProm(
-        `gcc ${filepath} -o ${outPath} && cd ${outputPath} && ${jobId}.exe`,
-      );
-      result = p.stdout;
+      if (job.inputPath) {
+        const p = await execProm(
+          `gcc -Wall ${filepath} -o ${outPath}  && cd ${outputDirPath} && ${jobId}.exe < ${job.inputPath}`,
+        );
+        result = p.stdout;
+      } else {
+        const p = await execProm(
+          `gcc ${filepath} -o ${outPath} && cd ${outputDirPath} && ${jobId}.exe`,
+        );
+        result = p.stdout;
+      }
     } catch (ex) {
       result = ex.stderr;
       isError = 1;
@@ -104,13 +139,19 @@ export class AppService {
 
     return { result, isError };
   }
-  async executePy(filepath): Promise<{ result: string; isError: number }> {
+  async executePy(job: Jobs): Promise<{ result: string; isError: number }> {
+    const filepath = job.filepath;
+
     let result;
     let isError = 0;
     try {
-      const p = await execProm(`py ${filepath}`);
-      result = p.stdout;
-      result;
+      if (job.inputPath) {
+        const p = await execProm(`python ${filepath} < ${job.inputPath}`);
+        result = p.stdout;
+      } else {
+        const p = await execProm(`python ${filepath}`);
+        result = p.stdout;
+      }
     } catch (ex) {
       result = ex.stderr;
       result;
@@ -119,11 +160,31 @@ export class AppService {
 
     return { result, isError };
   }
-  async executeJs(filepath): Promise<{ result: string; isError: number }> {
+  async executeJs(job: Jobs): Promise<{ result: string; isError: number }> {
+    const filepath = job.filepath;
+
     let result;
     let isError = 0;
     try {
       const p = await execProm(`node ${filepath}`);
+      result = p.stdout;
+      result;
+    } catch (ex) {
+      result = ex.stderr;
+      result;
+      isError = 1;
+    }
+
+    return { result, isError };
+  }
+
+  async executeTs(job: Jobs): Promise<{ result: string; isError: number }> {
+    const filepath = job.filepath;
+
+    let result;
+    let isError = 0;
+    try {
+      const p = await execProm(`ts-node ${filepath}`);
       result = p.stdout;
       result;
     } catch (ex) {

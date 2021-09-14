@@ -3,10 +3,11 @@ import { useForm, SubmitHandler } from 'react-hook-form';
 import axios from 'axios';
 import Editor, { Monaco } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
-
+import moment from 'moment';
 interface CodeSubmitBody {
   code: string;
   extension: string;
+  input?: string;
 }
 type Inputs = {
   code: string;
@@ -28,18 +29,33 @@ const Home: React.FC = () => {
   const [output, setOutput] = useState<string>('');
   const [selectedLanguage, setSelectedLanguage] = useState<string>('javascript');
 
-  // const [language, setLanguage] = useState('cpp');
+  // eslint-disable-next-line no-unused-vars
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [time, setTime] = useState<{ type: string; value: number } | null>(null);
+
   let pollInterval: number;
+  const [input, setInput] = useState('');
 
   const onSubmit: SubmitHandler<Inputs> = async (data) => {
     const extensionKey = data.extension;
     const extension = languages[extensionKey];
-    const payload: CodeSubmitBody = {
-      extension,
-      code: editorRef.current?.getValue() as string,
-    };
+
+    let payload: CodeSubmitBody;
+
+    if (input == '') {
+      payload = {
+        extension,
+        code: editorRef.current?.getValue() as string,
+      };
+    } else {
+      payload = {
+        extension,
+        input,
+        code: editorRef.current?.getValue() as string,
+      };
+    }
+
     try {
       setOutput('');
       setStatus(null);
@@ -47,7 +63,7 @@ const Home: React.FC = () => {
       const { data } = await axios.post('http://localhost:5000/api/code/run', payload);
       if (data.jobId) {
         setJobId(data.jobId);
-        setStatus('Submitted');
+        setStatus('submitted');
 
         // poll here
         pollInterval = setInterval(async () => {
@@ -62,9 +78,21 @@ const Home: React.FC = () => {
           const { success, job, error } = statusRes;
           console.log(statusRes);
           if (success) {
-            const { status: jobStatus, output: jobOutput } = job;
+            const { status: jobStatus, output: jobOutput, startedAt, completedAt } = job;
             setStatus(jobStatus);
             if (jobStatus === 'pending') return;
+
+            const start_time = moment(startedAt);
+            const finish_time = moment(completedAt);
+            const inSeconds = finish_time.diff(start_time, 'seconds');
+            if (inSeconds) {
+              setTime({ type: 's', value: inSeconds });
+            } else {
+              const inMilliseconds = finish_time.diff(start_time, 'milliseconds');
+              setTime({ type: 'ms', value: inMilliseconds });
+            }
+
+            console.log({ start_time, finish_time });
             setOutput(jobOutput);
             clearInterval(pollInterval);
           } else {
@@ -124,6 +152,7 @@ const Home: React.FC = () => {
           className="flex justify-between px-4 pt-2">
           <select {...register('extension')} className="bg-gray text-gray-lighter">
             <option value="javascript">JavaScript</option>
+            <option value="typescript">TypeScript</option>
             <option value="python">Python</option>
             <option value="cpp">C++</option>
             <option value="c">C</option>
@@ -135,14 +164,30 @@ const Home: React.FC = () => {
         </form>
       </div>
 
-      <div className="bg-white w-full flex flex-col">
-        <div className="bg-gray-dark h-1/2 flex flex-col">
+      <div className="bg-gray-dark w-full flex flex-col p-2">
+        <div className=" h-1/2 flex flex-col">
           <h1 className=" text-gray-semiDark">Input:</h1>
-          <textarea className="bg-gray-dark w-full h-full text-white"></textarea>
+          <textarea
+            className="bg-gray-dark w-full h-full text-white"
+            onChange={(e) => setInput(e.target.value)}
+            value={input}></textarea>
         </div>
-        <div className="bg-gray-darkest h-1/2 flex flex-col">
-          <h1 className="text-gray-semiDark">Output:</h1>
-          {JSON.stringify({ output, status, jobId })}
+        <div className="bg-gray-dark h-1/2 flex flex-col p-2">
+          <div className="flex justify-between">
+            <h1 className="text-gray-semiDark">Output:</h1>
+            <div
+              className={`flex-shrink-0 ${status == 'pending' && 'text-yellow-500'} ${
+                status == 'success' && 'text-green-500'
+              } ${status == 'submitted' && 'text-yellow-500'} `}>
+              {status}
+            </div>
+            <div className="text-yellow-600">
+              {time?.value} {time?.type}
+            </div>
+          </div>
+          <div className="text-gray-lightest" style={{ whiteSpace: 'pre-line' }}>
+            {output}
+          </div>
         </div>
       </div>
     </div>

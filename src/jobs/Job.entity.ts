@@ -15,6 +15,7 @@ export enum LANGUAGE_EXT {
   C = 'c',
   PY = 'py',
   JS = 'js',
+  ts = 'ts',
 }
 
 @Entity()
@@ -33,6 +34,9 @@ export class Jobs {
 
   @Column({ nullable: true })
   output: string;
+
+  @Column({ nullable: true })
+  inputPath: string;
 
   @CreateDateColumn({
     type: 'timestamp',

@@ -14,11 +14,17 @@ export class JobsService {
   async getAllJobs() {
     return await this.jobsRepository.find();
   }
-  async createNewJob(extension, filepath): Promise<Jobs> {
+
+  async getJobById(id: string): Promise<Jobs> {
+    return await this.jobsRepository.findOne(id);
+  }
+  async createNewJob(extension, filepath, inputPath?): Promise<Jobs> {
     const newJob = new Jobs();
     newJob.language_ext = extension;
     newJob.filepath = filepath;
-
+    if (inputPath) {
+      newJob.inputPath = inputPath;
+    }
     return await this.jobsRepository.save(newJob);
   }
 
