@@ -137,7 +137,7 @@ const Home: React.FC = () => {
 
   return (
     /* "handleSubmit" will validate your inputs before invoking "onSubmit" */
-    <div className="bg-gray flex h-screen overflow-hidden">
+    <div className="bg-[#1e1e1e] flex h-screen overflow-hidden text-gray-400">
       <div className="w-3/4 flex-shrink-0 mt-4">
         <Editor
           height="90vh"
@@ -152,7 +152,9 @@ const Home: React.FC = () => {
         <form
           onSubmit={handleSubmit(onSubmit)}
           className="flex justify-between px-4 pt-2">
-          <select {...register('extension')} className="bg-gray text-gray-lighter">
+          <select
+            {...register('extension')}
+            className="bg-[#1e1e1e] text-gray-200 border border-gray-200 rounded-md px-2 py-1">
             <option value="javascript">JavaScript</option>
             <option value="typescript">TypeScript</option>
             <option value="python">Python</option>
@@ -161,20 +163,21 @@ const Home: React.FC = () => {
           </select>
           <input
             type="submit"
-            className="bg-indigo-600 p-2 text-gray-lightest hover:bg-indigo-500 cursor-pointer"
+            className="bg-indigo-600 p-2 text-gray-200 hover:bg-indigo-500 cursor-pointer rounded"
           />
         </form>
       </div>
 
-      <div className="bg-gray-dark w-full flex flex-col p-2">
+      <div className="w-full flex flex-col p-2">
         <div className=" h-1/2 flex flex-col">
           <h1 className=" text-gray-semiDark">Input:</h1>
           <textarea
-            className="bg-gray-dark w-full h-full text-white"
+            className="bg-[#1e1e1e] w-full h-full text-white border border-gray-200 rounded-md px-2 py-1"
             onChange={(e) => setInput(e.target.value)}
-            value={input}></textarea>
+            value={input}
+            style={{ resize: 'none' }}></textarea>
         </div>
-        <div className="bg-gray-dark h-1/2 flex flex-col p-2">
+        <div className=" h-1/2 flex flex-col p-2">
           <div className="flex justify-between">
             <h1 className="text-gray-semiDark">Output:</h1>
             <div
@@ -191,7 +194,7 @@ const Home: React.FC = () => {
               {time?.value} {time?.type}
             </div>
           </div>
-          <div className="text-gray-lightest" style={{ whiteSpace: 'pre-line' }}>
+          <div className="text-gray-100" style={{ whiteSpace: 'pre-line' }}>
             {output}
           </div>
         </div>
