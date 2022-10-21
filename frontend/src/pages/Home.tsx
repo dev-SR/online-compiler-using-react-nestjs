@@ -24,6 +24,8 @@ const languages: {
   python: 'py',
 };
 
+const classNames = (...classes: any[]) => classes.filter(Boolean).join(' ');
+
 const Home: React.FC = () => {
   const { register, handleSubmit, watch } = useForm<Inputs>();
   const [output, setOutput] = useState<string>('');
@@ -36,6 +38,15 @@ const Home: React.FC = () => {
 
   let pollInterval: number;
   const [input, setInput] = useState('');
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor>();
+
+  function handleEditorDidMount(
+    editor: monaco.editor.IStandaloneCodeEditor,
+    // eslint-disable-next-line no-unused-vars
+    monaco: Monaco,
+  ) {
+    editorRef.current = editor;
+  }
 
   const onSubmit: SubmitHandler<Inputs> = async (data) => {
     const extensionKey = data.extension;
@@ -116,15 +127,6 @@ const Home: React.FC = () => {
     }
     // alert(JSON.stringify({ extension, code: editorRef.current?.getValue() }));
   };
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor>();
-
-  function handleEditorDidMount(
-    editor: monaco.editor.IStandaloneCodeEditor,
-    // eslint-disable-next-line no-unused-vars
-    monaco: Monaco,
-  ) {
-    editorRef.current = editor;
-  }
 
   React.useEffect(() => {
     const subscription = watch((value) => {
@@ -136,7 +138,7 @@ const Home: React.FC = () => {
   return (
     /* "handleSubmit" will validate your inputs before invoking "onSubmit" */
     <div className="bg-gray flex h-screen overflow-hidden">
-      <div className="w-3/4 flex-shrink-0">
+      <div className="w-3/4 flex-shrink-0 mt-4">
         <Editor
           height="90vh"
           language={selectedLanguage}
@@ -176,9 +178,13 @@ const Home: React.FC = () => {
           <div className="flex justify-between">
             <h1 className="text-gray-semiDark">Output:</h1>
             <div
-              className={`flex-shrink-0 ${status == 'pending' && 'text-yellow-500'} ${
-                status == 'success' && 'text-green-500'
-              } ${status == 'submitted' && 'text-yellow-500'} `}>
+              className={classNames(
+                'flex-shrink-0 ',
+                status == 'pending' && 'text-yellow-500',
+                status == 'success' && 'text-green-500',
+                status == 'submitted' && 'text-yellow-500',
+                status == 'error' && 'text-red-500',
+              )}>
               {status}
             </div>
             <div className="text-yellow-600">
